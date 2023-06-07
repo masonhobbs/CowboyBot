@@ -20,7 +20,7 @@ class EventCog(commands.Cog):
 
         for trigger in self.cowboy_react_triggers:
             if trigger in message.content.lower() and '/cowboy' not in message.content.lower() and '!cowboy' not in message.content.lower():
-                await message.add_reaction(self.cowboy_emoji)
+                await message.add_reaction(str('<:moyai_cowboy:1112925840511094865>'))
                 self.db.insert_cowboy_reacts_table('' + trigger)
                 break
         
@@ -40,9 +40,8 @@ class EventCog(commands.Cog):
     async def on_command_error(self, ctx, *args):
         error = args[0]
         if isinstance(error, CommandNotFound) or ("not found" in error.lower()):
-            if ctx.author.name.lower() == "mesin":
-                command_name = ctx.message.content.split("/cowboy ")[1]
-                self.db.insert_feature_requests_table(command_name)
-                await ctx.send("i can only do so many commands, " + ctx.author.mention + ' pls add "' + command_name + '"')
+            command_name = ctx.message.content.split("/cowboy ")[1]
+            self.db.insert_feature_requests_table(command_name)
+            await ctx.send("i can only do so many commands, mesin pls add " + command_name + '"')
 
         

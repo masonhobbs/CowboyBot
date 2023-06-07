@@ -1,6 +1,7 @@
+import discord
 from discord.ext import commands
 import random
-from datetime import datetime
+import datetime
 from cogs.commands.models.cowboy_react import CowboyReact
 from cogs.commands.models.user_luck import UserLuck
 
@@ -8,6 +9,8 @@ class CommandCog(commands.Cog):
     def __init__(self, bot, db):
         self.bot = bot
         self.db = db
+        self.clover_emoji = '\U0001F340'
+        self.unlucky_emoji = '\U0001F6AB'
 
     @commands.command(name = "howdy")
     async def howdy(self,ctx,*args):
@@ -42,12 +45,18 @@ class CommandCog(commands.Cog):
         formatted_rows.sort(key=lambda x: x.lucky, reverse=True)
         msg = "```Lucker Dog Leaderboard\n--------------------------\n"
         for index, item in enumerate(formatted_rows):
-            msg = msg + str (index + 1) + '. ' + item.user + ' - ' + str(item.lucky) + '\n'
+            total = item.lucky + item.unlucky
+            ratio = (float(item.lucky) / float(total))
+            formatted_ratio = "{:.1%}".format(ratio)
+            msg = msg + str (index + 1) + '. ' + item.user + ' - ' + str(item.lucky) + ' (' + str(formatted_ratio) + ')\n'
 
         msg = msg + "\nBad Luck Brian Leaderboard\n--------------------------\n"
         formatted_rows.sort(key=lambda x: x.unlucky, reverse=True)
         for index, item in enumerate(formatted_rows):
-            msg = msg + str (index + 1) + '. ' + item.user + ' - ' + str(item.unlucky) + '\n'
+            total = item.lucky + item.unlucky
+            ratio = (float(item.unlucky) / float(total))
+            formatted_ratio = "{:.1%}".format(ratio)
+            msg = msg + str (index + 1) + '. ' + item.user + ' - ' + str(item.unlucky) + ' (' + str(formatted_ratio) + ')\n'
 
         msg = msg + '```'
         await ctx.send(msg)
@@ -56,19 +65,21 @@ class CommandCog(commands.Cog):
     @commands.command(name = "1d20")
     async def roll(self, ctx, *args):
         row = None
-        now = datetime.now()
+        now = datetime.datetime.now()
         seeded_datetime_string = now.strftime("%m/%d/%Y")
         seed = ctx.author.name + seeded_datetime_string
         
         luck_row = self.db.get_user_luck(ctx.author.name)
         random.seed(seed)
-        roll = random.randint(0, 1)
+        roll = random.randint(0, 101)
 
+        print(seed + ' - ' + str(roll))
+        
         luckyCount = 0
         unluckyCount = 0
-        if (roll == 1):
+        if (roll > 50):
             luckyCount +=1
-        else:
+        elif (roll <= 50):
             unluckyCount += 1
 
         if len(luck_row) == 0:
@@ -86,12 +97,62 @@ class CommandCog(commands.Cog):
         user_row = None
         user_row = UserLuck(ctx.author.name,row[1],row[2],row[3])
 
-        if (roll == 0):
-            await ctx.send("You rolled a [1]! \n`Lucky days: " + str(user_row.lucky) + " | Unlucky days: " + str(user_row.unlucky) + '`')
-        else:
-            await ctx.send("You rolled a [20]! \n`Lucky days: " + str(user_row.lucky) + " | Unlucky days: " + str(user_row.unlucky) + '`')
+        lucky_var_emoji_message = str('<:alex_pogguhz:845468275332087868>')
+        unlucky_var_emoji_message = str('<:peepoNuggie:747675590668058706>')
+        stat_var_message = " \n\n" + lucky_var_emoji_message + ' `' + str(user_row.lucky) + "`\t " + unlucky_var_emoji_message + '  `' + str(user_row.unlucky) + "`"
+        if (roll <= 50):
+            await ctx.send(unlucky_var_emoji_message + " You rolled a `1`!" + stat_var_message)
+        elif (roll > 50):
+            await ctx.send(lucky_var_emoji_message + " You rolled a `20`!" + stat_var_message)
 
         
+    @commands.command(name = "destiny")
+    async def destiny(self,ctx,*args):
+        lucky_days = 0
+        unlucky_days = 0
+        the_day = datetime.datetime.now()
+        seeded_datetime_string = the_day.strftime("%m/%d/%Y")
+        seed = args[0] + seeded_datetime_string
+        random.seed(seed)
+        roll = random.randint(0, 101)
+        print(seed + str(roll))
+        if (roll <= 50):
+            unlucky_days += 1
+        elif (roll > 50):
+            lucky_days += 1
+
+        try:
+            for i in range(int(args[1])):
+                try:
+                    the_day += datetime.timedelta(days=1)
+                    seeded_datetime_string = the_day.strftime("%m/%d/%Y")
+                    seed = args[0] + seeded_datetime_string
+                    random.seed(seed)
+                    roll = random.randint(0, 101)
+                    print(seed + ' ' + str(roll))
+                    if (roll <= 50):
+                        unlucky_days += 1
+                    elif (roll > 50):
+                        lucky_days += 1
+                except Exception as e:
+                    print(e)
+
+            print("user - " + args[0]    + " - lucky days: " + str(lucky_days) + " - unlucky days: " + str(unlucky_days))
+        except Exception as e:
+            print(e)
+
+        await ctx.send("Logged to console")
+
+    @commands.command(name = "test")
+    async def test(self,ctx):
+        print(ctx.message)
+        emoji = discord.utils.get(self.bot.emojis, name='pensiveCowboy')
+        for emoji in self.bot.emojis:
+            print(emoji)
+        await ctx.send(str('<a:moyai_dance:1112929694241783918>'))
+        await ctx.message.add_reaction(str('<:moyai_cowboy:1112925840511094865>'))
+        # await ctx.send("this is for whatever my dumbfuck creator is testing")
+
     @commands.command(name = "reactcount")
     async def reactcount(self,ctx, arg = None):
         react_rows = self.db.get_cowboy_reacts_count()
