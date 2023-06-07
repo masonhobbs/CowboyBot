@@ -14,21 +14,17 @@ class DbHandler():
     def __create_connection(self,db_file):
         try:
             conn = sqlite3.connect(db_file)
-            print("connected to db")
             return conn
         except Error as e:
             print(e)
 
     def __create_howdy_reacts_table(self):
-        sql_create_howdy_reacts_table = ''' CREATE TABLE CowboyReacts (
+        sql_create_howdy_reacts_table = ''' CREATE TABLE IF NOT EXISTS CowboyReacts (
                                                 id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                                                 triggerWord TEXT NOT NULL
                                             );'''
-        try:
-            cursor = self.__conn.cursor()
-            cursor.execute(sql_create_howdy_reacts_table)
-        except Error as e:
-            print(e)
+        cursor = self.__conn.cursor()
+        cursor.execute(sql_create_howdy_reacts_table)
 
         return
 
@@ -54,15 +50,12 @@ class DbHandler():
         return rows
 
     def __create_feature_requests_table(self):
-        sql_create_feature_requests_table = ''' CREATE TABLE FeatureRequests (
+        sql_create_feature_requests_table = ''' CREATE TABLE IF NOT EXISTS FeatureRequests (
                                                     Id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                                                     Feature VARCHAR(250)
                                                 );'''
-        try:
-            cursor = self.__conn.cursor()
-            cursor.execute(sql_create_feature_requests_table)
-        except Error as e:
-            print(e)
+        cursor = self.__conn.cursor()
+        cursor.execute(sql_create_feature_requests_table)
 
         return          
 
@@ -93,17 +86,14 @@ class DbHandler():
         return
 
     def __create_luck_table(self):
-        sql_create_luck_table = ''' CREATE TABLE UserLuck (
+        sql_create_luck_table = ''' CREATE TABLE IF NOT EXISTS UserLuck (
                                                     Username TEXT PRIMARY KEY NOT NULL,
                                                     LuckyCount INT NOT NULL DEFAULT 0,
                                                     UnluckyCount INT NOT NULL DEFAULT 0,
                                                     LastRoll TEXT DEFAULT CURRENT_TIMESTAMP
                                                 );'''
-        try:
-            cursor = self.__conn.cursor()
-            cursor.execute(sql_create_luck_table)
-        except Error as e:
-            print(e)
+        cursor = self.__conn.cursor()
+        cursor.execute(sql_create_luck_table)
 
         return
     

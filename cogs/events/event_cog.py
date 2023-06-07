@@ -1,8 +1,11 @@
 from discord.ext import commands
+import discord
 from discord.ext.commands import CommandNotFound
+from db.db_handler import DbHandler
+from discord import app_commands
 
 class EventCog(commands.Cog):
-    def __init__(self, bot, db):
+    def __init__(self, bot: commands.Bot, db) -> None:
         self.bot = bot
         self.cowboy_react_triggers = ['howdy', 'yeehaw', 'pardner', 'buckaroo', 'cowboy', 'what in tarnation', 'rancher', 'beans', 'biscuits','biscuit',
                                       'wrangler', 'rodeo', 'gunslinger', 'hillbilly', 'tootin', 'rootin', 'cowgirl', 'texas']
@@ -26,8 +29,8 @@ class EventCog(commands.Cog):
         
         if ("bruh" in message.content.lower() or "moment" in message.content.lower()):
             channel = message.channel
-            await channel.send(':moyai:')
-            await message.add_reaction(self.moyai_emoji)
+            await channel.send(str('<:moyai_cowboy:1112925840511094865>'))
+            await message.add_reaction(str('<:moyai_cowboy:1112925840511094865>'))
 
 
     @commands.Cog.listener()
@@ -44,4 +47,11 @@ class EventCog(commands.Cog):
             self.db.insert_feature_requests_table(command_name)
             await ctx.send("i can only do so many commands, mesin pls add " + command_name + '"')
 
+
+async def setup(bot: commands.Bot) -> None:
+    db = DbHandler()
+    await bot.add_cog(
+        EventCog(bot,db),
+        guilds = [discord.Object(id = -1)] # your guild id here
+    )
         
