@@ -18,7 +18,7 @@ class CowboyBotClient(commands.Bot):
         super().__init__(
             command_prefix=("!cowboy", "/cowboy"),
             intents = discord.Intents.all(),
-            application_id = -1 #your app id here, found on discord's developer portal
+            application_id = -1 # your app id here
         )
 
         self.initial_extensions = [

@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+from discord.app_commands import tree
 import random
 import datetime
 from db.db_handler import DbHandler
@@ -13,13 +14,21 @@ class CommandCog(commands.Cog):
         self.bot = bot
         self.db = db
 
+    # syncs all commands globally
+    # optional guild id to sync only a specific server
     @app_commands.command(name="sync", description="For syncing slash commands, dev only")
-    async def sync(self, interaction: discord.Interaction) -> None:
-        # your user id here, would recommend adding a forced sync on bot setup at first for your server by calling bot.tree.sync(guild=YOURGUILDIDHERE)
-        # if the command doesnt't show up
-        if interaction.user.id == -1: 
-            await self.bot.tree.sync()
-            await interaction.response.send_message("Commands synced across servers")
+    @app_commands.describe(guild_id = "The guild id to sync")
+    async def sync(self, interaction: discord.Interaction, guild_id: str = None) -> None:
+        if interaction.user.id == 350035723329470465:
+            try:
+                if (guild_id is None):
+                    await self.bot.tree.sync()
+                else:
+                    await self.bot.tree.sync(guild=discord.Object(id=int(guild_id)))
+                await interaction.response.send_message("Commands synced across servers")
+            except Exception as e:
+                print(e)
+
         else:
             await interaction.response.send_message("You must be the bot developer to use this command, go away")
 
@@ -139,9 +148,7 @@ class CommandCog(commands.Cog):
 
 async def setup(bot: commands.Bot) -> None:
     db = DbHandler()
-    guilds = [guild async for guild in bot.fetch_guilds()]
     await bot.add_cog(
-        CommandCog(bot,db),
-        guilds=guilds
+        CommandCog(bot,db)
     )
         

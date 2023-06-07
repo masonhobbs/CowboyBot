@@ -50,9 +50,7 @@ class EventCog(commands.Cog):
 
 async def setup(bot: commands.Bot) -> None:
     db = DbHandler()
-    guilds = [guild async for guild in bot.fetch_guilds()]
     await bot.add_cog(
-        EventCog(bot,db),
-        guilds=guilds
+        EventCog(bot,db)
     )
         
