@@ -18,7 +18,7 @@ class CowboyBotClient(commands.Bot):
         super().__init__(
             command_prefix=("!cowboy", "/cowboy"),
             intents = discord.Intents.all(),
-            application_id = -1 # your app_id here
+            application_id = -1 #your app id here, found on discord's developer portal
         )
 
         self.initial_extensions = [
@@ -29,7 +29,6 @@ class CowboyBotClient(commands.Bot):
     async def setup_hook(self):
         for extension in self.initial_extensions:
             await self.load_extension(extension)
-        await bot.tree.sync(guild=discord.Object(id = -1)) # your guild id here
 
     async def on_ready(self):
         print(f'{self.user} has connected to Discord!')

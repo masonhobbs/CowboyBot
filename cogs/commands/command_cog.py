@@ -12,7 +12,17 @@ class CommandCog(commands.Cog):
     def __init__(self, bot: commands.Bot, db) -> None:
         self.bot = bot
         self.db = db
-    
+
+    @app_commands.command(name="sync", description="For syncing slash commands, dev only")
+    async def sync(self, interaction: discord.Interaction) -> None:
+        # your user id here, would recommend adding a forced sync on bot setup at first for your server by calling bot.tree.sync(guild=YOURGUILDIDHERE)
+        # if the command doesnt't show up
+        if interaction.user.id == -1: 
+            await self.bot.tree.sync()
+            await interaction.response.send_message("Commands synced across servers")
+        else:
+            await interaction.response.send_message("You must be the bot developer to use this command, go away")
+
     @app_commands.command(name="howdy", description="Get greeted with a hearty howdy")    
     @app_commands.describe(person = "The person you would like to greet")
     async def howdy(self, interaction: discord.Interaction, person: discord.Member) -> None:
@@ -129,8 +139,9 @@ class CommandCog(commands.Cog):
 
 async def setup(bot: commands.Bot) -> None:
     db = DbHandler()
+    guilds = [guild async for guild in bot.fetch_guilds()]
     await bot.add_cog(
         CommandCog(bot,db),
-        guilds = [discord.Object(id = -1)] # your guild id here
+        guilds=guilds
     )
         
