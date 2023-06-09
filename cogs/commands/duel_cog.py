@@ -15,12 +15,18 @@ class DuelCog(commands.Cog):
     @app_commands.describe(opponent = "The person you would like to duel")
     async def duel(self, interaction: discord.Interaction, opponent: discord.Member) -> None:
         duel_win_string = ""
+        if opponent.id == interaction.user.id:
+            await interaction.response.send_message("You cannot duel yourself, pardner!")
+            return
+        if opponent.id == 723190104004493444:
+            await interaction.response.send_message("*quick draws on your ass* gg bozo")
+            return
+        
         await interaction.response.send_message('Yeehaw ' + opponent.mention + '! ' + interaction.user.name + ' has challenged you to duel! Do you accept? Reply "yes" or "no"!')
         try:
             def check_duel_acceptance(message: discord.Message):
-                if message.author.name != opponent.name:
-                    return
-                return message.author.name == opponent.name
+                if message.author.name == opponent.name:
+                    return message.content.lower() == "yes" or message.content.lower() == "no"
             
             def check_duel_answer(message: discord.Message):
                 if message.author.id == interaction.user.id or message.author.id == opponent.id:
@@ -44,14 +50,16 @@ class DuelCog(commands.Cog):
                     challenger_wins = await self.bot.wait_for('message', check=check_duel_answer, timeout=60)
                     winner_id = challenger_wins.author.id
                     if winner_id == interaction.user.id:
-                        await interaction.followup.send(f"{interaction.user.mention} has won the duel! :cowboy: \n\n{opponent.mention}" + str("<:pensivecowboy:834848610788835358>"))
+                        await interaction.followup.send(f"{interaction.user.mention} has won the duel! :cowboy: \n\n{opponent.mention} owned")
                     elif winner_id == opponent.id:
-                        await interaction.followup.send(f"{opponent.mention} has won the duel! :cowboy: \n\n{interaction.user.mention} " + str("<:pensivecowboy:834848610788835358>"))
+                        await interaction.followup.send(f"{opponent.mention} has won the duel! :cowboy: \n\n{interaction.user.mention} owned")
                 except:
                     await interaction.followup.send("Neither challenger responded in time! The duel has been canceled.")
                 
             elif opponent_response.content == 'n' or opponent_response.content == 'no':
                 await interaction.followup.send(f"Coward! {interaction.user.mention} your opponent has declined!")
+            else: 
+                await interaction.followup.send('You did not reply "yes" or "no"! The duel has been canceled.')
         except:
             await interaction.followup.send(f"{interaction.user.mention}, the opponent did not respond in time!")
             
