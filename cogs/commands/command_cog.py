@@ -5,14 +5,14 @@ from discord.app_commands import tree
 import random
 import datetime
 from db.db_handler import DbHandler
-from cogs.commands.models.cowboy_react import CowboyReact
-from cogs.commands.models.user_luck import UserLuck
+from db.models.user_luck import UserLuck
+from db.models.cowboy_react import CowboyReact
 from discord.app_commands import Choice
 
 class CommandCog(commands.Cog):
     def __init__(self, bot: commands.Bot, db) -> None:
         self.bot = bot
-        self.db = db
+        self.db: DbHandler = db
 
     # syncs all commands globally
     # optional guild id to sync only a specific server
@@ -40,21 +40,21 @@ class CommandCog(commands.Cog):
     @app_commands.command(name="leaderboard", description="Show leaderboard for 1d20 rolls")
     async def leaderboard(self, interaction: discord.Interaction) -> None:
         rows = self.db.get_user_luck_all()
-        formatted_rows = []
-        for row in rows:
-            formatted_rows.append(UserLuck(row[0],row[1],row[2],row[3]))
+        # formatted_rows = []
+        # for row in rows:
+        #     formatted_rows.append(UserLuck(row[0],row[1],row[2],row[3],row[4],row[5],row[6]))
 
-        formatted_rows.sort(key=lambda x: x.lucky, reverse=True)
+        rows.sort(key=lambda x: x.lucky, reverse=True)
         msg = "```Lucker Dog Leaderboard\n--------------------------\n"
-        for index, item in enumerate(formatted_rows):
+        for index, item in enumerate(rows):
             total = item.lucky + item.unlucky
             ratio = (float(item.lucky) / float(total))
             formatted_ratio = "{:.1%}".format(ratio)
             msg = msg + str (index + 1) + '. ' + item.user + ' - ' + str(item.lucky) + ' (' + str(formatted_ratio) + ')\n'
 
         msg = msg + "\nBad Luck Brian Leaderboard\n--------------------------\n"
-        formatted_rows.sort(key=lambda x: x.unlucky, reverse=True)
-        for index, item in enumerate(formatted_rows):
+        rows.sort(key=lambda x: x.unlucky, reverse=True)
+        for index, item in enumerate(rows):
             total = item.lucky + item.unlucky
             ratio = (float(item.unlucky) / float(total))
             formatted_ratio = "{:.1%}".format(ratio)
@@ -65,16 +65,13 @@ class CommandCog(commands.Cog):
 
     @app_commands.command(name="roll", description="Test your luck for the day")
     async def roll(self, interaction: discord.Interaction):
-        row = None
         now = datetime.datetime.now()
         seeded_datetime_string = now.strftime("%m/%d/%Y")
-        seed = interaction.user.name + seeded_datetime_string
+        seed = str(interaction.user.id) + seeded_datetime_string
         
-        luck_row = self.db.get_user_luck(interaction.user.name)
+        user_row = self.db.get_user_luck(interaction.user.id)
         random.seed(seed)
         roll = random.randint(0, 101)
-
-        print(seed + ' - ' + str(roll))
         
         luckyCount = 0
         unluckyCount = 0
@@ -83,28 +80,32 @@ class CommandCog(commands.Cog):
         elif (roll <= 50):
             unluckyCount += 1
 
-        if len(luck_row) == 0:
-            self.db.initialize_user_luck_row(interaction.user.name,luckyCount,unluckyCount)
+        print(seed + " - " + str(roll))
+        if user_row is None:
+            self.db.initialize_user_luck_row(interaction.user.id,interaction.user.name)
         else:
-            user_row = None
-            row = luck_row[0]
-
-            user_row = UserLuck(interaction.user.name,row[1],row[2],row[3])
+            if luckyCount > 0:
+                user_row.currentUnluckyStreak = 0
+                user_row.currentLuckyStreak += 1
+            elif unluckyCount > 0:
+                user_row.currentLuckyStreak = 0
+                user_row.currentUnluckyStreak += 1
+            
             if user_row.last_roll_date != seeded_datetime_string:
-                self.db.update_user_luck_row(interaction.user.name, user_row.lucky + luckyCount, user_row.unlucky + unluckyCount)
+                user_row.lucky += luckyCount
+                user_row.unlucky += unluckyCount
+                self.db.update_user_luck_row(user_luck=user_row)
 
-        luck_row = self.db.get_user_luck(interaction.user.name)
-        row = luck_row[0]
-        user_row = None
-        user_row = UserLuck(interaction.user.name,row[1],row[2],row[3])
+        user_row = self.db.get_user_luck(interaction.user.id)
 
         lucky_var_emoji_message = str('<:alex_pogguhz:845468275332087868>')
         unlucky_var_emoji_message = str('<:peepoNuggie:747675590668058706>')
         stat_var_message = " \n\n" + lucky_var_emoji_message + ' `' + str(user_row.lucky) + "`\t " + unlucky_var_emoji_message + '  `' + str(user_row.unlucky) + "`"
+        
         if (roll <= 50):
-            await interaction.response.send_message(unlucky_var_emoji_message + " You rolled a `1`!" + stat_var_message)
+            await interaction.response.send_message(unlucky_var_emoji_message + " You rolled a `1`!  (" + str(user_row.currentUnluckyStreak) + "x unlucky streak)" + stat_var_message)
         elif (roll > 50):
-            await interaction.response.send_message(lucky_var_emoji_message + " You rolled a `20`!" + stat_var_message)
+            await interaction.response.send_message(lucky_var_emoji_message + " You rolled a `20`!   (" + str(user_row.currentLuckyStreak) + "x lucky streak)" + stat_var_message)
 
     @app_commands.command(name="react_count", description="See the number of messages that CowboyBot has reacted to")    
     @app_commands.describe(type = "See the most used cowboy word, the least used, or show the list of all cowboy words and their frequency")

@@ -23,11 +23,13 @@ class CowboyBotClient(commands.Bot):
 
         self.initial_extensions = [
             "cogs.commands.command_cog",
+            "cogs.commands.duel_cog",
             "cogs.events.event_cog"            
         ]
 
     async def setup_hook(self):
         for extension in self.initial_extensions:
+            print(extension)
             await self.load_extension(extension)
 
     async def on_ready(self):

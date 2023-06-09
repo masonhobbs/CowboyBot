@@ -2,6 +2,9 @@ from datetime import datetime
 from datetime import timedelta
 import sqlite3
 from sqlite3 import Error
+from db.models.user_luck import UserLuck
+from db.models.cowboy_react import CowboyReact
+from typing import List
 
 class DbHandler():
     def __init__(self):
@@ -86,77 +89,106 @@ class DbHandler():
         return
 
     def __create_luck_table(self):
-        sql_create_luck_table = ''' CREATE TABLE IF NOT EXISTS UserLuck (
-                                                    Username TEXT PRIMARY KEY NOT NULL,
+        sql_create_luck_table = ''' CREATE TABLE IF NOT EXISTS UserIdLuck (
+                                                    UserId INTEGER PRIMARY KEY NOT NULL,
+                                                    Username TEXT NOT NULL,
                                                     LuckyCount INT NOT NULL DEFAULT 0,
                                                     UnluckyCount INT NOT NULL DEFAULT 0,
-                                                    LastRoll TEXT DEFAULT CURRENT_TIMESTAMP
+                                                    LastRoll TEXT DEFAULT CURRENT_TIMESTAMP,
+                                                    CurrentLuckyStreak INTEGER NOT NULL DEFAULT 0,
+                                                    CurrentUnluckyStreak INTEGER NOT NULL DEFAULT 0
                                                 );'''
         cursor = self.__conn.cursor()
         cursor.execute(sql_create_luck_table)
 
         return
     
-    def get_user_luck(self,username):
+    def get_user_luck(self,user_id) -> UserLuck:
         sql = '''
-                SELECT Username, LuckyCount, UnluckyCount, LastRoll
-                FROM UserLuck
-                WHERE Username=?
+                SELECT 
+                    UserId,
+                    Username,
+                    LuckyCount,
+                    UnluckyCount,
+                    LastRoll,
+                    CurrentLuckyStreak,
+                    CurrentUnluckyStreak
+                FROM UserIdLuck
+                WHERE UserId=?
               '''
         rows = []
         cursor = self.__conn.cursor()
         try:
-            cursor.execute(sql, (username,))
+            cursor.execute(sql, (user_id,))
             rows = cursor.fetchall()
         except Error as e:
             print(e)
 
-        return rows
+        if (len(rows) > 0):
+            row = rows[0]
+            user_row = UserLuck(row[0],row[1],row[2],row[3],row[4],row[5],row[6])
+            return user_row
+        else:
+            return None
     
-    def get_user_luck_all(self):
+    def get_user_luck_all(self) -> List[UserLuck]: 
         sql = '''
-                SELECT Username, LuckyCount, UnluckyCount, LastRoll
-                FROM UserLuck
+                SELECT 
+                    UserId,
+                    Username,
+                    LuckyCount,
+                    UnluckyCount,
+                    LastRoll,
+                    CurrentLuckyStreak,
+                    CurrentUnluckyStreak
+                FROM UserIdLuck
               '''
         rows = []
+        results = []
+
         try:
             cursor = self.__conn.cursor()
             cursor.execute(sql)
             rows = cursor.fetchall()
+            for row in rows:
+                results.append(UserLuck(row[0],row[1],row[2],row[3],row[4],row[5],row[6]))
         except Error as e:
             print(e)
 
-        return rows
+        return results
     
-    def initialize_user_luck_row(self,username,luckyCount,unluckyCount):
+    def initialize_user_luck_row(self,user_id,username):
         try:
             with self.__conn:
                 now = datetime.now()
                 datetime_string = now.strftime("%m/%d/%Y")
-                sql = ''' INSERT INTO UserLuck VALUES(?,?,?,?) '''
+                sql = ''' INSERT INTO UserIdLuck VALUES(?,?,?,?,?,?,?) '''
                 try:
                     cursor = self.__conn.cursor()
-                    cursor.execute(sql, (username,luckyCount,unluckyCount,datetime_string))
+                    cursor.execute(sql, (user_id,username,0,0,datetime_string,0,0))
                 except Error as e:
                     print(e)
                 return
         except Error as e:
             print(e)
 
-    def update_user_luck_row(self,username,luckyCount,unluckyCount):
+    def update_user_luck_row(self,user_luck: UserLuck):
         now = datetime.now()
         datetime_string = now.strftime("%m/%d/%Y")
         try:
             with self.__conn:
                 sql = '''
-                        UPDATE UserLuck
+                        UPDATE UserIdLuck
                         SET LuckyCount = ? ,
                             UnluckyCount = ? ,
-                            LastRoll = ?
-                        WHERE Username = ?
+                            LastRoll = ? ,
+                            Username = ? ,
+                            CurrentLuckyStreak = ?,
+                            CurrentUnluckyStreak = ? 
+                        WHERE UserId = ?
                         '''
                 cursor = self.__conn.cursor()
-                cursor.execute(sql, (luckyCount, unluckyCount, datetime_string, username))
+                cursor.execute(sql, (user_luck.lucky, user_luck.unlucky, datetime_string, user_luck.user, user_luck.currentLuckyStreak, user_luck.currentUnluckyStreak, user_luck.user_id))
         except Error as e:
             print(e)
                                
