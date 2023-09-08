@@ -1,17 +1,10 @@
 import discord
 from discord.ext import commands
-from discord.utils import get
-from discord.ext.commands import CommandNotFound
-import sys
-from db.db_handler import DbHandler
-from cogs.events.event_cog import EventCog
-from cogs.commands.command_cog import CommandCog
-from cogs.commands.duel_cog import DuelCog
-import asyncio
-from discord import app_commands
+from jobs.scheduled_jobs import ScheduledJobs
 
 BOT_PREFIX=("!cowboy ","/cowboy ", "/cowboybot ", "!cowboybot ")
 TOKEN = 'YOURTOKENHERE'
+ACTIVITY = discord.Game(name="Try out duels! /duel")
 
 class CowboyBotClient(commands.Bot):
     def __init__(self):
@@ -31,8 +24,11 @@ class CowboyBotClient(commands.Bot):
         for extension in self.initial_extensions:
             print(extension)
             await self.load_extension(extension)
+        cron = ScheduledJobs(self)
 
+ 
     async def on_ready(self):
+        await self.change_presence(activity=ACTIVITY)
         print(f'{self.user} has connected to Discord!')
 
 bot = CowboyBotClient()

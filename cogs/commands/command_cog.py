@@ -1,25 +1,28 @@
+from typing import List
 import discord
 from discord import app_commands
 from discord.ext import commands
-from discord.app_commands import tree
 import random
 import datetime
 from db.db_handler import DbHandler
-from db.models.user_luck import UserLuck
 from db.models.cowboy_react import CowboyReact
 from discord.app_commands import Choice
+from cogs.commands.helpers.rolls.base_roll_helper import BaseRollHelper
+from cogs.commands.helpers.rolls.monthly_roll_helper import MonthlyRollHelper
+
+from sqlalchemy import select
+from db.tables.user_id_luck import UserIdLuck
+from db.tables.user_id_monthly_luck import UserIdMonthlyLuck
 
 class CommandCog(commands.Cog):
     def __init__(self, bot: commands.Bot, db) -> None:
         self.bot = bot
         self.db: DbHandler = db
 
-    # syncs all commands globally
-    # optional guild id to sync only a specific server
     @app_commands.command(name="sync", description="For syncing slash commands, dev only")
     @app_commands.describe(guild_id = "The guild id to sync")
     async def sync(self, interaction: discord.Interaction, guild_id: str = None) -> None:
-        if interaction.user.id == 350035723329470465:
+        if interaction.user.id == -1:
             try:
                 if (guild_id is None):
                     await self.bot.tree.sync()
@@ -38,74 +41,90 @@ class CommandCog(commands.Cog):
         await interaction.response.send_message(f"Howdy {person.mention}! :cowboy:")
 
     @app_commands.command(name="leaderboard", description="Show leaderboard for 1d20 rolls")
-    async def leaderboard(self, interaction: discord.Interaction) -> None:
-        rows = self.db.get_user_luck_all()
-        # formatted_rows = []
-        # for row in rows:
-        #     formatted_rows.append(UserLuck(row[0],row[1],row[2],row[3],row[4],row[5],row[6]))
-
-        rows.sort(key=lambda x: x.lucky, reverse=True)
-        msg = "```Lucker Dog Leaderboard\n--------------------------\n"
+    @app_commands.describe(display_monthly_leaderboard = "Display monthly leaderboard instead")
+    async def leaderboard(self, interaction: discord.Interaction, display_monthly_leaderboard: bool = None) -> None:
+        rows = []
+        msg = ""
+        if display_monthly_leaderboard is None or display_monthly_leaderboard is False:
+            rows: List[UserIdLuck] = list(self.db.session.scalars(select(UserIdLuck)).all())
+        elif display_monthly_leaderboard is True:
+            current_month = datetime.datetime.now().month
+            rows: List[UserIdMonthlyLuck] = list(self.db.session.scalars(select(UserIdMonthlyLuck).where(UserIdMonthlyLuck.CurrentMonthNumber == current_month)).all())
+            
+        num_lucky_users = 0
+        num_lucky_rolls = 0
+        num_unlucky_users = 0
+        num_unlucky_rolls = 0
+        total_rolls = 0
+        rows.sort(key=lambda x: x.LuckyCount, reverse=True)
+        if display_monthly_leaderboard is True:
+            now = datetime.datetime.now()
+            month_name = now.strftime("%B")
+            msg = "```" + month_name + " " + str(now.year) + " Leaderboard\n\n" + "Lucker Dog Leaderboard\n--------------------------\n"
+        else:
+            msg = "```Lucker Dog Leaderboard\n--------------------------\n"
+            
         for index, item in enumerate(rows):
-            total = item.lucky + item.unlucky
-            ratio = (float(item.lucky) / float(total))
+            total = item.LuckyCount + item.UnluckyCount
+            ratio = (float(item.LuckyCount) / float(total))
             formatted_ratio = "{:.1%}".format(ratio)
-            msg = msg + str (index + 1) + '. ' + item.user + ' - ' + str(item.lucky) + ' (' + str(formatted_ratio) + ')\n'
+            msg = msg + str (index + 1) + '. ' + item.Username + ' - ' + str(item.LuckyCount) + ' (' + str(formatted_ratio) + ')\n'
+            total_rolls += item.LuckyCount
+            num_lucky_rolls += item.LuckyCount
+            num_lucky_users += 1
 
         msg = msg + "\nBad Luck Brian Leaderboard\n--------------------------\n"
-        rows.sort(key=lambda x: x.unlucky, reverse=True)
+        rows.sort(key=lambda x: x.UnluckyCount, reverse=True)
         for index, item in enumerate(rows):
-            total = item.lucky + item.unlucky
-            ratio = (float(item.unlucky) / float(total))
+            total = item.LuckyCount + item.UnluckyCount
+            ratio = (float(item.UnluckyCount) / float(total))
             formatted_ratio = "{:.1%}".format(ratio)
-            msg = msg + str (index + 1) + '. ' + item.user + ' - ' + str(item.unlucky) + ' (' + str(formatted_ratio) + ')\n'
+            msg = msg + str (index + 1) + '. ' + item.Username + ' - ' + str(item.UnluckyCount) + ' (' + str(formatted_ratio) + ')\n'
 
-        msg = msg + '```'
+            total_rolls += item.UnluckyCount
+            num_unlucky_rolls += item.UnluckyCount
+            num_unlucky_users += 1
+
+        average_lucky_percent = (float(num_lucky_rolls) / float(total_rolls))
+        average_unlucky_percent = (float(num_unlucky_rolls) / float(total_rolls))
+        formatted_lucky_percent = "{:.1%}".format(average_lucky_percent)
+        formatted_unlucky_percent = "{:.1%}".format(average_unlucky_percent)
+        msg = msg + '\nTotal rolls: ' + str(total_rolls) + ' | Overall lucky rolls: ' + formatted_lucky_percent + ' | Overall unlucky rolls: ' + formatted_unlucky_percent + '```'
         await interaction.response.send_message(msg)
 
     @app_commands.command(name="roll", description="Test your luck for the day")
     async def roll(self, interaction: discord.Interaction):
-        now = datetime.datetime.now()
-        seeded_datetime_string = now.strftime("%m/%d/%Y")
-        seed = str(interaction.user.id) + seeded_datetime_string
-        
-        user_row = self.db.get_user_luck(interaction.user.id)
-        random.seed(seed)
-        roll = random.randint(0, 101)
-        
-        luckyCount = 0
-        unluckyCount = 0
-        if (roll > 50):
-            luckyCount +=1
-        elif (roll <= 50):
-            unluckyCount += 1
-
-        print(seed + " - " + str(roll))
-        if user_row is None:
-            self.db.initialize_user_luck_row(interaction.user.id,interaction.user.name)
-        else:
-            if luckyCount > 0:
-                user_row.currentUnluckyStreak = 0
-                user_row.currentLuckyStreak += 1
-            elif unluckyCount > 0:
-                user_row.currentLuckyStreak = 0
-                user_row.currentUnluckyStreak += 1
-            
-            if user_row.last_roll_date != seeded_datetime_string:
-                user_row.lucky += luckyCount
-                user_row.unlucky += unluckyCount
-                self.db.update_user_luck_row(user_luck=user_row)
-
-        user_row = self.db.get_user_luck(interaction.user.id)
-
         lucky_var_emoji_message = str('<:alex_pogguhz:845468275332087868>')
         unlucky_var_emoji_message = str('<:peepoNuggie:747675590668058706>')
-        stat_var_message = " \n\n" + lucky_var_emoji_message + ' `' + str(user_row.lucky) + "`\t " + unlucky_var_emoji_message + '  `' + str(user_row.unlucky) + "`"
-        
-        if (roll <= 50):
-            await interaction.response.send_message(unlucky_var_emoji_message + " You rolled a `1`!  (" + str(user_row.currentUnluckyStreak) + "x unlucky streak)" + stat_var_message)
-        elif (roll > 50):
-            await interaction.response.send_message(lucky_var_emoji_message + " You rolled a `20`!   (" + str(user_row.currentLuckyStreak) + "x lucky streak)" + stat_var_message)
+        now = datetime.datetime.now()
+        today_date_str = now.strftime("%m/%d/%Y")
+        seed = str(interaction.user.id) + today_date_str
+        random.seed(seed)
+        is_lucky = random.randint(0, 1) == 1
+
+        try:
+            overall_roller = BaseRollHelper(interaction.user, self.db, UserIdLuck)            
+            monthly_roller = MonthlyRollHelper(interaction.user, self.db, UserIdMonthlyLuck)
+
+            if overall_roller.has_already_rolled(today_date_str) is True:
+                if is_lucky is True:
+                    result_already_rolled = '[20]'
+                else:
+                    result_already_rolled = '[1]'
+                await interaction.response.send_message("You already rolled today, pardner! (You rolled a `" + result_already_rolled + "`!)")
+                return
+
+            overall_roller.process_roll(is_lucky, today_date_str)
+            monthly_roller.process_roll(is_lucky, today_date_str)
+            
+            response_message = overall_roller.generate_result_message(lucky_var_emoji_message, unlucky_var_emoji_message, None) + monthly_roller.generate_result_message()
+
+            if is_lucky is False:
+                await interaction.response.send_message(unlucky_var_emoji_message + " You rolled a `1`!  (" + str(overall_roller.user_row.CurrentUnluckyStreak) + "x unlucky streak)" + response_message)
+            elif is_lucky is True:
+                await interaction.response.send_message(lucky_var_emoji_message + " You rolled a `20`!   (" + str(overall_roller.user_row.CurrentLuckyStreak) + "x lucky streak)" + response_message)
+        except Exception as e: 
+            await interaction.response.send_message("oops things got fucked because i tried to get fancy, i'll fix it soon tm")
 
     @app_commands.command(name="react_count", description="See the number of messages that CowboyBot has reacted to")    
     @app_commands.describe(type = "See the most used cowboy word, the least used, or show the list of all cowboy words and their frequency")
@@ -146,6 +165,19 @@ class CommandCog(commands.Cog):
                 await interaction.response.send_message(msg)
             except Exception as e:
                 print(e)
+
+    @app_commands.command(name="sandbox", description="For dev testing whatever code is contained in this command")
+    async def sandbox(self, interaction: discord.Interaction):
+        result_msg = "$"
+        if interaction.user.id != -1:
+            await interaction.response.send_message("u ain't allowed")
+            return
+
+        today_date_str = datetime.datetime.now().strftime("%m/%d/%Y")
+        overall_rolls = BaseRollHelper(interaction.user, self.db, UserIdLuck)
+        overall_rolls.process_roll(False, today_date_str)
+        await interaction.response.send_message(result_msg)
+        return
 
 async def setup(bot: commands.Bot) -> None:
     db = DbHandler()

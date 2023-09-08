@@ -1,15 +1,11 @@
 from discord.ext import commands
-import discord
 from discord.ext.commands import CommandNotFound
 from db.db_handler import DbHandler
-from discord import app_commands
 from constants.cowboy_constants import CowboyConstants
 
 class EventCog(commands.Cog):
     def __init__(self, bot: commands.Bot, db) -> None:
         self.bot = bot
-        # self.cowboy_react_triggers = ['howdy', 'yeehaw', 'pardner', 'buckaroo', 'cowboy', 'what in tarnation', 'rancher', 'beans', 'biscuits','biscuit',
-        #                               'wrangler', 'rodeo', 'gunslinger', 'hillbilly', 'tootin', 'rootin', 'cowgirl', 'texas']
         self.db = db
         self.cowboy_emoji = '\U0001F920'
         self.moyai_emoji = '\U0001F5FF'
