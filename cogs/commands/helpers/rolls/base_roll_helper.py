@@ -24,7 +24,7 @@ class BaseRollHelper():
 
         self.user_row = self.get_user_row()
         if self.user_row is None:
-            new_row = self.build_new_user_row(table)
+            new_row = self.build_new_user_row()
             self.insert_new_user_row(new_row)
             self.user_row = self.get_user_row()
         
@@ -40,8 +40,8 @@ class BaseRollHelper():
                 self.user_row.CurrentUnluckyStreak = 0
             else:
                 self.user_row.UnluckyCount += 1
-                self.user_row.CurrentUnluckyStreak += 1
                 self.user_row.CurrentLuckyStreak = 0
+                self.user_row.CurrentUnluckyStreak += 1
             self.user_row.LastRoll = today_date_str
             self.user_row.Username = self.user_name
 

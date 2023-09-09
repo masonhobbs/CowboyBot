@@ -7,6 +7,8 @@ import datetime
 from db.db_handler import DbHandler
 from db.models.cowboy_react import CowboyReact
 from discord.app_commands import Choice
+from cogs.commands.ui.views.pageable_embed_view import PageableEmbedView
+from cogs.commands.helpers.rolls.leaderboard_helper import Leaderboard_Helper
 from cogs.commands.helpers.rolls.base_roll_helper import BaseRollHelper
 from cogs.commands.helpers.rolls.monthly_roll_helper import MonthlyRollHelper
 
@@ -22,7 +24,7 @@ class CommandCog(commands.Cog):
     @app_commands.command(name="sync", description="For syncing slash commands, dev only")
     @app_commands.describe(guild_id = "The guild id to sync")
     async def sync(self, interaction: discord.Interaction, guild_id: str = None) -> None:
-        if interaction.user.id == -1:
+        if interaction.user.id == 350035723329470465:
             try:
                 if (guild_id is None):
                     await self.bot.tree.sync()
@@ -43,54 +45,18 @@ class CommandCog(commands.Cog):
     @app_commands.command(name="leaderboard", description="Show leaderboard for 1d20 rolls")
     @app_commands.describe(display_monthly_leaderboard = "Display monthly leaderboard instead")
     async def leaderboard(self, interaction: discord.Interaction, display_monthly_leaderboard: bool = None) -> None:
-        rows = []
-        msg = ""
-        if display_monthly_leaderboard is None or display_monthly_leaderboard is False:
-            rows: List[UserIdLuck] = list(self.db.session.scalars(select(UserIdLuck)).all())
-        elif display_monthly_leaderboard is True:
-            current_month = datetime.datetime.now().month
-            rows: List[UserIdMonthlyLuck] = list(self.db.session.scalars(select(UserIdMonthlyLuck).where(UserIdMonthlyLuck.CurrentMonthNumber == current_month)).all())
-            
-        num_lucky_users = 0
-        num_lucky_rolls = 0
-        num_unlucky_users = 0
-        num_unlucky_rolls = 0
-        total_rolls = 0
-        rows.sort(key=lambda x: x.LuckyCount, reverse=True)
+        now = datetime.datetime.now()
+        month_title = now.strftime("%B") + " " + str(now.year) + " Leaderboard"
+        leaderboard_helper = Leaderboard_Helper()
+        overall_embed = leaderboard_helper.build_leaderboard_embed("Overall Leaderboard", list(self.db.session.scalars(select(UserIdLuck)).all()), discord.Color.dark_gold())
+        monthly_embed = leaderboard_helper.build_leaderboard_embed(month_title, list(self.db.session.scalars(select(UserIdMonthlyLuck).where(UserIdMonthlyLuck.CurrentMonthNumber == now.month)).all()), discord.Color.dark_blue())
+        embeds = [overall_embed, monthly_embed]
+        start_embed_index = 0
         if display_monthly_leaderboard is True:
-            now = datetime.datetime.now()
-            month_name = now.strftime("%B")
-            msg = "```" + month_name + " " + str(now.year) + " Leaderboard\n\n" + "Lucker Dog Leaderboard\n--------------------------\n"
-        else:
-            msg = "```Lucker Dog Leaderboard\n--------------------------\n"
-            
-        for index, item in enumerate(rows):
-            total = item.LuckyCount + item.UnluckyCount
-            ratio = (float(item.LuckyCount) / float(total))
-            formatted_ratio = "{:.1%}".format(ratio)
-            msg = msg + str (index + 1) + '. ' + item.Username + ' - ' + str(item.LuckyCount) + ' (' + str(formatted_ratio) + ')\n'
-            total_rolls += item.LuckyCount
-            num_lucky_rolls += item.LuckyCount
-            num_lucky_users += 1
+            start_embed_index = 1
 
-        msg = msg + "\nBad Luck Brian Leaderboard\n--------------------------\n"
-        rows.sort(key=lambda x: x.UnluckyCount, reverse=True)
-        for index, item in enumerate(rows):
-            total = item.LuckyCount + item.UnluckyCount
-            ratio = (float(item.UnluckyCount) / float(total))
-            formatted_ratio = "{:.1%}".format(ratio)
-            msg = msg + str (index + 1) + '. ' + item.Username + ' - ' + str(item.UnluckyCount) + ' (' + str(formatted_ratio) + ')\n'
-
-            total_rolls += item.UnluckyCount
-            num_unlucky_rolls += item.UnluckyCount
-            num_unlucky_users += 1
-
-        average_lucky_percent = (float(num_lucky_rolls) / float(total_rolls))
-        average_unlucky_percent = (float(num_unlucky_rolls) / float(total_rolls))
-        formatted_lucky_percent = "{:.1%}".format(average_lucky_percent)
-        formatted_unlucky_percent = "{:.1%}".format(average_unlucky_percent)
-        msg = msg + '\nTotal rolls: ' + str(total_rolls) + ' | Overall lucky rolls: ' + formatted_lucky_percent + ' | Overall unlucky rolls: ' + formatted_unlucky_percent + '```'
-        await interaction.response.send_message(msg)
+        view = PageableEmbedView(embeds, start_page=start_embed_index)
+        await interaction.response.send_message(embed=embeds[start_embed_index],view=view)
 
     @app_commands.command(name="roll", description="Test your luck for the day")
     async def roll(self, interaction: discord.Interaction):
@@ -166,16 +132,13 @@ class CommandCog(commands.Cog):
             except Exception as e:
                 print(e)
 
+    # This is basically just a dev command to test out random stuff
     @app_commands.command(name="sandbox", description="For dev testing whatever code is contained in this command")
     async def sandbox(self, interaction: discord.Interaction):
-        result_msg = "$"
-        if interaction.user.id != -1:
+        result_msg = "$ some test"
+        if interaction.user.id != 350035723329470465:
             await interaction.response.send_message("u ain't allowed")
             return
-
-        today_date_str = datetime.datetime.now().strftime("%m/%d/%Y")
-        overall_rolls = BaseRollHelper(interaction.user, self.db, UserIdLuck)
-        overall_rolls.process_roll(False, today_date_str)
         await interaction.response.send_message(result_msg)
         return
 
