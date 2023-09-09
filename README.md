@@ -1,10 +1,10 @@
 # CowboyBot
 
-This is a pet project to make a fun and somewhat clean Discord bot for me and my friends' server.
+This is a pet project to make a fun and somewhat clean Discord bot for me and my friends' server. It offers native integration for the commands, various event handlers (such as checking new messages/users), and somewhat decent database stuff.
 
-The bot uses DiscordPy 2.0 and a SQLLite stack to function.
+The bot uses DiscordPy and a SQLLite stack to function. The sqllite database is just a local file on my PC. Database operations are managed using [sqlalchemy](https://www.sqlalchemy.org/), an ORM library similar to .NET Entity Framework.
 
-The database stuff is pretty sloppy at the moment, but for creating a Discord bot that integrates with Discord's native UI (ex: slash commands, slash command input parameters) this should serve as a pretty decent starting point for anyone interested.
+This is probably a decent starting point for your own discord bot, but I've slowly worked on this for a couple years so I may not remember exact specifics on if this will work out of the box. Follow the errors I guess.
 
 Questions/Help:
 email: mhobbs1996 at gmail dot com
