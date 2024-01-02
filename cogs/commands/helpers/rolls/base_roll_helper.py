@@ -4,6 +4,7 @@ from discord.app_commands import tree
 import datetime
 import sqlalchemy
 from db.db_handler import DbHandler
+from db.tables.roll_streak_record import RollStreakRecord
 T = TypeVar('T')
 
 class BaseRollHelper():
@@ -13,11 +14,11 @@ class BaseRollHelper():
         self.user_name: str = ""
         self.table_type = table
     
-        if self.user.nick is not None and len(self.user.nick) > 0:
+        if hasattr(self.user, "nick") and self.user.nick is not None and len(self.user.nick) > 0:
             self.user_name = self.user.nick
-        elif self.user.global_name is not None and len(self.user.global_name) > 0:
+        elif hasattr(self.user, "global_name") and self.user.global_name is not None and len(self.user.global_name) > 0:
             self.user_name = self.user.global_name
-        elif self.user.display_name is not None and len(self.user.display_name) > 0:
+        elif hasattr(self.user, "display_name") and self.user.display_name is not None and len(self.user.display_name) > 0:
             self.user_name = self.user.display_name
         else:
             self.user_name = self.user.name
@@ -30,6 +31,9 @@ class BaseRollHelper():
         
     def get_user_row(self) -> T:
         return self.db.session.scalars(sqlalchemy.select(self.table_type).where(self.table_type.UserId == self.user.id)).one_or_none()
+    
+    def get_current_streak_records(self) -> RollStreakRecord:
+        return self.db.session.scalars(sqlalchemy.select(RollStreakRecord)).first()
 
     def process_roll(self, is_lucky: bool, today_date_str: str):
         has_rolled = self.has_already_rolled(today_date_str)
@@ -45,6 +49,12 @@ class BaseRollHelper():
             self.user_row.LastRoll = today_date_str
             self.user_row.Username = self.user_name
 
+        streak_record = self.get_current_streak_records()
+        if self.user_row.CurrentLuckyStreak > streak_record.HighestLuckyStreak:
+            streak_record.HighestLuckyStreak = self.user_row.CurrentLuckyStreak
+        if self.user_row.CurrentUnluckyStreak > streak_record.HighestUnluckyStreak:
+            streak_record.HighestUnluckyStreak = self.user_row.CurrentUnluckyStreak
+        
         self.save_changes()
         return self.user_row
 
@@ -58,7 +68,7 @@ class BaseRollHelper():
         msg = "\n\n"
         if header is not None:
             msg = "\n\n" + header + " Stats:\n"
-        msg = msg + lucky_emoji + ' `' + str(self.user_row.LuckyCount) + "`\t " + unlucky_emoji + ' `' + str(self.user_row.UnluckyCount) + "`"
+        msg = msg + lucky_emoji + ' `' + str(self.user_row.LuckyCount) + "`\u200B \u200B \u200B \u200B " + unlucky_emoji + '`' + str(self.user_row.UnluckyCount) + "`"
         return msg
     
     def build_new_user_row(self) -> T:

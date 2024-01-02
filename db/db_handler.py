@@ -9,12 +9,10 @@ class DbHandler():
         db_url = r"sqlite:///path/to/db/file/pythonsqllite.db"
         self.__db_location = r"/path/to/db/file/pythonsqllite.db"
         self.__conn = self.__create_connection(self.__db_location)
-        self.__create_howdy_reacts_table()
-        self.__create_feature_requests_table()
 
-        self.__engine = create_engine(db_url, echo=True)
-        BaseDbClass.metadata.create_all(self.__engine)
-        self.session = Session(self.__engine)
+        self.engine = create_engine(db_url, echo=False)
+        BaseDbClass.metadata.create_all(self.engine)
+        self.session = Session(self.engine)
 
     def __create_connection(self,db_file):
         try:
@@ -53,40 +51,3 @@ class DbHandler():
         cursor.execute("SELECT triggerWord, COUNT(*) FROM CowboyReacts GROUP BY triggerWord")
         rows = cursor.fetchall()
         return rows
-
-    def __create_feature_requests_table(self):
-        sql_create_feature_requests_table = ''' CREATE TABLE IF NOT EXISTS FeatureRequests (
-                                                    Id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                                                    Feature VARCHAR(250)
-                                                );'''
-        cursor = self.__conn.cursor()
-        cursor.execute(sql_create_feature_requests_table)
-
-        return          
-
-    def insert_feature_requests_table(self,feature):
-        with self.__conn:
-            sql = ''' INSERT INTO FeatureRequests VALUES(?,?) '''
-            cursor = self.__conn.cursor()
-            cursor.execute(sql, (None,feature))
-            last_row_id = cursor.lastrowid
-
-            return last_row_id
-
-    def get_feature_requests(self):
-        cursor = self.__conn.cursor()
-        cursor.execute("SELECT Id, Feature FROM FeatureRequests")
-        rows = cursor.fetchall()
-        return rows
-
-    def delete_feature_request(self,feature):
-        sql = ''' DELETE FROM FeatureRequests WHERE Feature LIKE ? '''
-        cursor = self.__conn.cursor()
-        
-        try:
-            cursor.execute(sql, ('%'+str(feature)+'%',))
-        except Error as e:
-            print(e)
-
-        return
-    

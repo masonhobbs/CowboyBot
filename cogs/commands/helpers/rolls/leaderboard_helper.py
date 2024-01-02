@@ -1,7 +1,8 @@
 import discord
+from db.tables.roll_streak_record import RollStreakRecord
 
 class Leaderboard_Helper():
-    def build_leaderboard_embed(self,title,rows,color) -> discord.Embed:
+    def build_leaderboard_embed(self,title,rows,color,streak_record: RollStreakRecord) -> discord.Embed:
         num_lucky_users = 0
         num_lucky_rolls = 0
         num_unlucky_users = 0
@@ -31,6 +32,9 @@ class Leaderboard_Helper():
         embed_result.add_field(name="Total Rolls", value=str(total_rolls), inline=True)
         embed_result.add_field(name="Lucky Rolls %", value=str(formatted_lucky_percent),inline=True)
         embed_result.add_field(name="Unlucky Rolls %", value=str(formatted_unlucky_percent),inline=True)
+        embed_result.add_field(name="", value="", inline=False)
+        embed_result.add_field(name="Highest Lucky Streak", value=str(streak_record.HighestLuckyStreak), inline=True)
+        embed_result.add_field(name="Highest Unlucky Streak", value=str(streak_record.HighestUnluckyStreak), inline=True)
 
         return embed_result
         

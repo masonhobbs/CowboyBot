@@ -11,10 +11,14 @@ from cogs.commands.ui.views.pageable_embed_view import PageableEmbedView
 from cogs.commands.helpers.rolls.leaderboard_helper import Leaderboard_Helper
 from cogs.commands.helpers.rolls.base_roll_helper import BaseRollHelper
 from cogs.commands.helpers.rolls.monthly_roll_helper import MonthlyRollHelper
+from cogs.commands.ui.views.roll_result_view import RollResultView
+import traceback
 
-from sqlalchemy import select
+from sqlalchemy import select, insert
 from db.tables.user_id_luck import UserIdLuck
 from db.tables.user_id_monthly_luck import UserIdMonthlyLuck
+from db.tables.feature_request import FeatureRequests
+from db.tables.roll_streak_record import RollStreakRecord
 
 class CommandCog(commands.Cog):
     def __init__(self, bot: commands.Bot, db) -> None:
@@ -43,20 +47,54 @@ class CommandCog(commands.Cog):
         await interaction.response.send_message(f"Howdy {person.mention}! :cowboy:")
 
     @app_commands.command(name="leaderboard", description="Show leaderboard for 1d20 rolls")
-    @app_commands.describe(display_monthly_leaderboard = "Display monthly leaderboard instead")
-    async def leaderboard(self, interaction: discord.Interaction, display_monthly_leaderboard: bool = None) -> None:
+    @app_commands.choices(type = [
+        Choice(name = "Normal", value = "normal"),
+        Choice(name = "Monthly", value = "monthly"),
+    ])
+    async def leaderboard(self, interaction: discord.Interaction, type: str = None) -> None:
         now = datetime.datetime.now()
         month_title = now.strftime("%B") + " " + str(now.year) + " Leaderboard"
+        streak_record = self.db.session.scalars(select(RollStreakRecord)).first()
         leaderboard_helper = Leaderboard_Helper()
-        overall_embed = leaderboard_helper.build_leaderboard_embed("Overall Leaderboard", list(self.db.session.scalars(select(UserIdLuck)).all()), discord.Color.dark_gold())
-        monthly_embed = leaderboard_helper.build_leaderboard_embed(month_title, list(self.db.session.scalars(select(UserIdMonthlyLuck).where(UserIdMonthlyLuck.CurrentMonthNumber == now.month)).all()), discord.Color.dark_blue())
+        overall_embed = leaderboard_helper.build_leaderboard_embed("Overall Leaderboard", list(self.db.session.scalars(select(UserIdLuck)).all()), discord.Color.dark_gold(), streak_record)
+        monthly_embed = leaderboard_helper.build_leaderboard_embed(month_title, list(self.db.session.scalars(select(UserIdMonthlyLuck).where(UserIdMonthlyLuck.CurrentMonthNumber == now.month)).all()), discord.Color.dark_blue(), streak_record)
         embeds = [overall_embed, monthly_embed]
         start_embed_index = 0
-        if display_monthly_leaderboard is True:
+        if type == "monthly":
             start_embed_index = 1
 
         view = PageableEmbedView(embeds, start_page=start_embed_index)
         await interaction.response.send_message(embed=embeds[start_embed_index],view=view)
+
+
+    @app_commands.command(name="request_feature", description="Submit ideas for the next evolution of CowboyBot")
+    @app_commands.describe(idea = "Submit your idea")
+    async def submit_feature(self, interaction: discord.Interaction, idea: str) -> None:
+        print(idea)
+        try:
+            if idea is None or len(idea) == 0:
+                await interaction.response.send_message("You did not provide an idea pardner!")
+                return
+            
+            insert_statement = insert(FeatureRequests).values(Request=idea, User=interaction.user.name)
+            with self.db.engine.connect() as conn:
+                result = conn.execute(insert_statement)
+                conn.commit()
+                print(result)
+                await interaction.response.send_message("Your request has been submitted!")
+        except Exception as e:
+            print(e) 
+
+    @app_commands.command(name="features", description="See all feature requests for the next evolution of CowboyBot")
+    async def get_features(self, interaction: discord.Interaction) -> None:
+        features = self.db.session.scalars(select(FeatureRequests)).all()
+        msg = "`"
+        for item in features:
+            feature: FeatureRequests = item
+            msg = msg + str(feature.Id) + ". " + feature.Request + " - by " + feature.User + "\n"
+
+        msg = msg + "`"
+        await interaction.response.send_message(msg)
 
     @app_commands.command(name="roll", description="Test your luck for the day")
     async def roll(self, interaction: discord.Interaction):
@@ -67,29 +105,38 @@ class CommandCog(commands.Cog):
         seed = str(interaction.user.id) + today_date_str
         random.seed(seed)
         is_lucky = random.randint(0, 1) == 1
+        saving_throw = False
 
         try:
+            if is_lucky is False:
+                saving_throw_roll = random.randint(0,19)
+                is_lucky = saving_throw_roll == 1 
+                saving_throw = is_lucky
+
             overall_roller = BaseRollHelper(interaction.user, self.db, UserIdLuck)            
             monthly_roller = MonthlyRollHelper(interaction.user, self.db, UserIdMonthlyLuck)
+            already_rolled = overall_roller.has_already_rolled(today_date_str)
 
-            if overall_roller.has_already_rolled(today_date_str) is True:
-                if is_lucky is True:
-                    result_already_rolled = '[20]'
-                else:
-                    result_already_rolled = '[1]'
-                await interaction.response.send_message("You already rolled today, pardner! (You rolled a `" + result_already_rolled + "`!)")
-                return
+            if already_rolled is False:
+                overall_roller.process_roll(is_lucky, today_date_str)
+                monthly_roller.process_roll(is_lucky, today_date_str)
+                
+            overall_message = overall_roller.generate_result_message(lucky_var_emoji_message, unlucky_var_emoji_message, None)
+            monthly_message = monthly_roller.generate_result_message()
+            streak_display = overall_roller.user_row.CurrentLuckyStreak if is_lucky else overall_roller.user_row.CurrentUnluckyStreak
+            the_view = RollResultView(lucky=is_lucky, 
+                                      saving_throw=saving_throw,
+                                      roll_totals_with_emojis=overall_message,
+                                      roll_streak=streak_display,
+                                      already_rolled=already_rolled
+                                     )
+            the_view.add_special_leaderboard_result(type=monthly_roller.get_month() + " Stats",message=monthly_message)
+            the_view.add_author(interaction)
+            await interaction.response.send_message(embed=the_view.get_embed(), view=the_view)
 
-            overall_roller.process_roll(is_lucky, today_date_str)
-            monthly_roller.process_roll(is_lucky, today_date_str)
-            
-            response_message = overall_roller.generate_result_message(lucky_var_emoji_message, unlucky_var_emoji_message, None) + monthly_roller.generate_result_message()
 
-            if is_lucky is False:
-                await interaction.response.send_message(unlucky_var_emoji_message + " You rolled a `1`!  (" + str(overall_roller.user_row.CurrentUnluckyStreak) + "x unlucky streak)" + response_message)
-            elif is_lucky is True:
-                await interaction.response.send_message(lucky_var_emoji_message + " You rolled a `20`!   (" + str(overall_roller.user_row.CurrentLuckyStreak) + "x lucky streak)" + response_message)
-        except Exception as e: 
+        except Exception: 
+            print(traceback.format_exc())
             await interaction.response.send_message("oops things got fucked because i tried to get fancy, i'll fix it soon tm")
 
     @app_commands.command(name="react_count", description="See the number of messages that CowboyBot has reacted to")    
@@ -135,11 +182,11 @@ class CommandCog(commands.Cog):
     # This is basically just a dev command to test out random stuff
     @app_commands.command(name="sandbox", description="For dev testing whatever code is contained in this command")
     async def sandbox(self, interaction: discord.Interaction):
-        result_msg = "$ some test"
         if interaction.user.id != 350035723329470465:
             await interaction.response.send_message("u ain't allowed")
             return
-        await interaction.response.send_message(result_msg)
+        
+        await interaction.response.send_message("Nothing to test right now")
         return
 
 async def setup(bot: commands.Bot) -> None:
