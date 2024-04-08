@@ -3,7 +3,9 @@ import discord
 from discord.app_commands import tree
 import datetime
 import sqlalchemy
+from cogs.commands.helpers.common.name_helper import NameHelper
 from db.db_handler import DbHandler
+from db.tables.roll_logs import RollLogs
 from db.tables.roll_streak_record import RollStreakRecord
 T = TypeVar('T')
 
@@ -14,14 +16,8 @@ class BaseRollHelper():
         self.user_name: str = ""
         self.table_type = table
     
-        if hasattr(self.user, "nick") and self.user.nick is not None and len(self.user.nick) > 0:
-            self.user_name = self.user.nick
-        elif hasattr(self.user, "global_name") and self.user.global_name is not None and len(self.user.global_name) > 0:
-            self.user_name = self.user.global_name
-        elif hasattr(self.user, "display_name") and self.user.display_name is not None and len(self.user.display_name) > 0:
-            self.user_name = self.user.display_name
-        else:
-            self.user_name = self.user.name
+        name_helper = NameHelper(self.user)
+        self.user_name = name_helper.get_user_name()
 
         self.user_row = self.get_user_row()
         if self.user_row is None:
@@ -42,10 +38,12 @@ class BaseRollHelper():
                 self.user_row.LuckyCount += 1
                 self.user_row.CurrentLuckyStreak += 1
                 self.user_row.CurrentUnluckyStreak = 0
+                
             else:
                 self.user_row.UnluckyCount += 1
                 self.user_row.CurrentLuckyStreak = 0
                 self.user_row.CurrentUnluckyStreak += 1
+
             self.user_row.LastRoll = today_date_str
             self.user_row.Username = self.user_name
 

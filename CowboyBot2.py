@@ -1,8 +1,6 @@
 import discord
 from discord.ext import commands
-from jobs.scheduled_jobs import ScheduledJobs
 
-BOT_PREFIX=("!cowboy ","/cowboy ", "/cowboybot ", "!cowboybot ")
 TOKEN = 'YOURTOKENHERE'
 ACTIVITY = discord.Game(name="Try out duels! /duel")
 
@@ -24,7 +22,6 @@ class CowboyBotClient(commands.Bot):
         for extension in self.initial_extensions:
             print(extension)
             await self.load_extension(extension)
-        cron = ScheduledJobs(self)
 
  
     async def on_ready(self):

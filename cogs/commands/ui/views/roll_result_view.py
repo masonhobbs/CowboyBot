@@ -1,5 +1,7 @@
 import discord
-from typing import List
+from typing import List, Union
+
+from cogs.commands.helpers.common.name_helper import NameHelper
 
 class RollResultView(discord.ui.View):
     def __init__(self, lucky: bool, saving_throw: bool, roll_totals_with_emojis: str, roll_streak: int, already_rolled: bool):
@@ -37,15 +39,8 @@ class RollResultView(discord.ui.View):
     def get_embed(self): 
         return self.embed
     
-    def add_author(self, interaction: discord.Interaction):
-        author = ""
-        if hasattr(interaction.user, "nick") and interaction.user.nick is not None and len(interaction.user.nick) > 0:
-            author = interaction.user.nick
-        elif hasattr(interaction.user, "global_name") and interaction.user.global_name is not None and len(interaction.user.global_name) > 0:
-            author = interaction.user.global_name
-        elif hasattr(interaction.user, "display_name") and interaction.user.display_name is not None and len(interaction.user.display_name) > 0:
-            author = interaction.user.display_name
-        else:
-            author = interaction.user.name
+    def add_author(self, user: Union[discord.User, discord.Member]):
+        name_helper = NameHelper(user)
+        author = name_helper.get_user_name()
         self.embed.set_author(name=author)
     

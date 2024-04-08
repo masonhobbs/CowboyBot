@@ -6,13 +6,14 @@ from db.tables.base_db_class import BaseDbClass
 
 class DbHandler():
     def __init__(self):
-        db_url = r"sqlite:///path/to/db/file/pythonsqllite.db"
-        self.__db_location = r"/path/to/db/file/pythonsqllite.db"
+        db_url = r"sqlite:///cowboy_db.db"
+        self.__db_location = r"cowboy_db.db"
         self.__conn = self.__create_connection(self.__db_location)
 
         self.engine = create_engine(db_url, echo=False)
         BaseDbClass.metadata.create_all(self.engine)
         self.session = Session(self.engine)
+        self.__create_howdy_reacts_table()
 
     def __create_connection(self,db_file):
         try:
