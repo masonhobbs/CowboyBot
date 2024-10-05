@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-TOKEN = 'YOURTOKENHERE'
+TOKEN = 'YOUR_TOKEN_HERE'
 ACTIVITY = discord.Game(name="Try out duels! /duel")
 
 class CowboyBotClient(commands.Bot):
@@ -14,13 +14,13 @@ class CowboyBotClient(commands.Bot):
 
         self.initial_extensions = [
             "cogs.commands.command_cog",
+            "cogs.commands.rolls.roll_cog",
             "cogs.commands.duel_cog",
             "cogs.events.event_cog"            
         ]
 
     async def setup_hook(self):
         for extension in self.initial_extensions:
-            print(extension)
             await self.load_extension(extension)
 
  

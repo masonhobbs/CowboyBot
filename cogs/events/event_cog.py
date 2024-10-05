@@ -22,7 +22,6 @@ class EventCog(commands.Cog):
             if trigger in message.content.lower() and '/cowboy' not in message.content.lower() and '!cowboy' not in message.content.lower():
                 await message.add_reaction(str('<:moyai_cowboy:1112925840511094865>'))
                 self.db.insert_cowboy_reacts_table('' + trigger)
-                break
         
         if ("bruh" in message.content.lower() or "moment" in message.content.lower()):
             channel = message.channel

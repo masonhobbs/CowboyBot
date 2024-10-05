@@ -1,11 +1,9 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-import sys
 import asyncio
 from constants.cowboy_constants import CowboyConstants
 import random
-import datetime
 import time
 
 class DuelCog(commands.Cog):
@@ -24,7 +22,7 @@ class DuelCog(commands.Cog):
             await interaction.response.send_message("You cannot duel yourself, pardner!")
             return
         if opponent.id == 723190104004493444:
-            await interaction.response.send_message("*quick draws on your ass* gg bozo")
+            await interaction.response.send_message("You cannot duel me, pardner!")
             return
         
         await interaction.response.send_message('Yeehaw ' + opponent.mention + '!\n\n' + interaction.user.mention + ' has challenged you to duel! Do you accept? Reply "yes" or "no"!')

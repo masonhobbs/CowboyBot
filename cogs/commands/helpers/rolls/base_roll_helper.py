@@ -65,7 +65,7 @@ class BaseRollHelper():
     def generate_result_message(self, lucky_emoji: str, unlucky_emoji: str, header: str):
         msg = "\n\n"
         if header is not None:
-            msg = "\n\n" + header + " Stats:\n"
+            msg = "\n\n" + header + "\n"
         msg = msg + lucky_emoji + ' `' + str(self.user_row.LuckyCount) + "`\u200B \u200B \u200B \u200B " + unlucky_emoji + '`' + str(self.user_row.UnluckyCount) + "`"
         return msg
     
