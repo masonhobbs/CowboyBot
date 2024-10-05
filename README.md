@@ -8,4 +8,4 @@ This is probably a decent starting point for your own discord bot, but I've slow
 
 Questions/Help:
 email: mhobbs1996 at gmail dot com
-discord: add mesin#2277
+discord: add mesin
